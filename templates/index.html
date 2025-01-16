@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Disease Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        function togglePlantDiseases() {
+            var element = document.getElementById('class-names');
+            if (element.style.display === "none") {
+                element.style.display = "block";
+            } else {
+                element.style.display = "none";
+            }
+        }
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Plant Disease Prediction</h1>
+        <p>Select a plant image and get the disease prediction!</p>
+    </header>
+
+    <section id="predict-form">
+        <form action="/predict" method="POST" enctype="multipart/form-data">
+            <label for="file">Upload Plant Image:</label>
+            <input type="file" name="file" accept="image/*" required>
+            <button type="submit">Predict Disease</button>
+        </form>
+    </section>
+
+    <section id="result">
+        <div id="prediction-result">
+            <h3>Prediction Result</h3>
+            <p id="result-text"></p>
+        </div>
+    </section>
+
+    
+    <!-- Toggle for supported plants and diseases -->
+    <button onclick="togglePlantDiseases()">View Supported Plants and Diseases</button>
+
+    <section id="class-names" style="display:none;">
+        <h2>Supported Crops and Diseases</h2>
+        {% for category, diseases in class_names.items() %}
+            <div class="category">
+                <h3>{{ category }}</h3>
+                <ul>
+                    {% for idx, disease in diseases.items() %}
+                        <li>{{ disease }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+    </section>
+
+    <script>
+        const form = document.querySelector('form');
+        form.onsubmit = function (e) {
+            e.preventDefault();
+            let formData = new FormData(form);
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('result-text').textContent = 'Error: ' + data.error;
+                } else {
+                    document.getElementById('result-text').textContent = `Predicted Disease: ${data.disease} (${data.plant_type}) with ${Math.round(data.confidence * 100)}% confidence.`;
+                }
+            })
+            .catch(error => {
+                document.getElementById('result-text').textContent = 'An error occurred. Please try again.';
+            });
+        };
+    </script>
+</body>
+</html>
