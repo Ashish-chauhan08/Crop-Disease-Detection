@@ -1,30 +1,42 @@
 from flask import Flask, request, jsonify, render_template
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 from PIL import Image
 import numpy as np
 import gdown
 import os
 
+# Disable GPU to force CPU usage and limit memory usage
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 physical_devices = tf.config.list_physical_devices('CPU')
-tf.config.set_visible_devices(physical_devices, 'CPU')
-tf.config.experimental.set_virtual_device_configuration(
-    physical_devices[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)]
-)
+if physical_devices:
+    tf.config.set_visible_devices(physical_devices, 'CPU')
+    try:
+        tf.config.experimental.set_virtual_device_configuration(
+            physical_devices[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)]
+        )
+    except RuntimeError as e:
+        print(f"Error setting memory limit: {e}")
 
 # Initialize Flask app
 app = Flask(__name__)
 
-# Load the model
-model_path = "plant_disease_model.keras"
+# Path for the model file
+MODEL_PATH = "plant_disease_model.keras"
 
-# If model doesn't exist locally, download it
-if not os.path.exists(model_path):
+# Download model if not already present
+if not os.path.exists(MODEL_PATH):
+    print("Model not found locally. Downloading...")
     url = "https://drive.google.com/uc?id=1OyByJOLdcEKofoUs6B1-AdWsEkPsT6l-" 
-    gdown.download(url, model_path, quiet=False)
+    gdown.download(url, MODEL_PATH, quiet=False)
 
 # Load the model
-model = load_model(model_path, compile=False)
+try:
+    model = load_model(MODEL_PATH, compile=False)
+    print("Model loaded successfully.")
+except Exception as e:
+    raise RuntimeError(f"Error loading the model: {e}")
 
 # Class names grouped by plant types (improved names)
 CLASS_NAMES = {
@@ -98,26 +110,40 @@ CLASS_NAMES = {
 
 # Preprocessing function
 def preprocess_image(image):
+    """
+    Preprocess the image for model prediction:
+    - Resize to (224, 224)
+    - Normalize pixel values to [0, 1]
+    - Add batch dimension
+    """
     image = image.resize((224, 224))  # Resize to 224x224
     image = np.array(image).astype('float32') / 255.0  # Normalize to [0, 1]
-    image = np.expand_dims(image, axis=0)  # Add batch dimension
-    return image
+    return np.expand_dims(image, axis=0)  # Add batch dimension
 
 # Routes
 @app.route('/')
 def index():
+    """
+    Renders the home page with class names displayed.
+    """
     return render_template('index.html', class_names=CLASS_NAMES)
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    """
+    Handles prediction requests:
+    - Accepts an uploaded image
+    - Preprocesses the image
+    - Runs the model to predict the disease
+    - Returns the result as JSON
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'})
+
+    file = request.files['file']
+
     try:
-        # Check if the file exists in the request
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file uploaded'})
-
-        file = request.files['file']
-
-        # Open the image and preprocess
+        # Open and preprocess the image
         image = Image.open(file)
         processed_image = preprocess_image(image)
 
@@ -126,19 +152,19 @@ def predict():
         class_idx = np.argmax(prediction)
         confidence = prediction[0][class_idx]
 
-        # Find the disease name based on predicted index
-        plant_type = None
-        predicted_label = None
+        # Map prediction to class name
+        plant_type, predicted_label = None, None
         for category, classes in CLASS_NAMES.items():
             if class_idx in classes:
                 plant_type = category
                 predicted_label = classes[class_idx]
                 break
 
+        # Return the prediction result
         return jsonify({
             'plant_type': plant_type,
             'disease': predicted_label,
-            'confidence': float(confidence)
+            'confidence': round(float(confidence), 4)
         })
 
     except Exception as e:
