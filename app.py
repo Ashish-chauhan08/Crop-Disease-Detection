@@ -6,18 +6,8 @@ import numpy as np
 import gdown
 import os
 
-# Disable GPU to force CPU usage and limit memory usage
+# Disable GPU to force CPU usage
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
-physical_devices = tf.config.list_physical_devices('CPU')
-if physical_devices:
-    tf.config.set_visible_devices(physical_devices, 'CPU')
-    try:
-        tf.config.experimental.set_virtual_device_configuration(
-            physical_devices[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)]
-        )
-    except RuntimeError as e:
-        print(f"Error setting memory limit: {e}")
 
 # Initialize Flask app
 app = Flask(__name__)
