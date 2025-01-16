@@ -4,6 +4,7 @@ from PIL import Image
 import numpy as np
 import gdown
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 # Initialize Flask app
 app = Flask(__name__)
