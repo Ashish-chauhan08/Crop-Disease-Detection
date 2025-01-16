@@ -4,7 +4,13 @@ from PIL import Image
 import numpy as np
 import gdown
 import os
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+physical_devices = tf.config.list_physical_devices('CPU')
+tf.config.set_visible_devices(physical_devices, 'CPU')
+tf.config.experimental.set_virtual_device_configuration(
+    physical_devices[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)]
+)
 
 # Initialize Flask app
 app = Flask(__name__)
