@@ -17,7 +17,7 @@ if not os.path.exists(model_path):
     gdown.download(url, model_path, quiet=False)
 
 # Load the model
-model = load_model(model_path)
+model = load_model(model_path, compile=False)
 
 # Class names grouped by plant types (improved names)
 CLASS_NAMES = {
